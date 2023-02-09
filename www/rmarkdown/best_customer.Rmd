@@ -1,0 +1,34 @@
+---
+params:
+  produto: "default"
+---
+  
+  
+  
+```{r}
+
+```
+
+## Top Customers by State
+```{r}
+
+
+```
+
+
+
+```{r}
+# now for a map
+
+# get state data
+
+
+# combine 
+
+```
+
+### Top Customers by State - Total Interest Income
+
+```{r}
+
+```

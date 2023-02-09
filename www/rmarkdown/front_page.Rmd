@@ -1,0 +1,21 @@
+---
+params:
+  produto: "default"
+
+---
+  
+```{r}
+source(here::here("functions.R"))
+```
+
+```{r}
+produto <- tools::toTitleCase(params$produto)
+```
+
+
+```{r, fig.height=13, fig.width=10, fig.align='center'}
+
+create_image(produto = produto,
+             month = this_month,
+             year = this_year)
+```

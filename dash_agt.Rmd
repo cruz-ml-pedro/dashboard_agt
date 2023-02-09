@@ -1,0 +1,420 @@
+---
+title: "Andamento Produtos"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    css: styles.css
+runtime: shiny 
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+source(here::here("setup.R"))
+```
+
+**RESUMO PRODUTOS**
+================================
+
+Inputs {.sidebar data-width="200"}
+-------------------------------------------------------------
+
+```{r sidebar}
+
+selectInput("FilterProduct2",
+            " ",
+            choices = unique(produtos_df$Produtos),
+            selected = NULL)
+
+#
+renderTable(
+   
+   produtos_df %>% 
+     filter(Produtos == input$FilterProduct2) %>% 
+     select(`Horas previstas`) %>% 
+     slice(1) %>%
+     as_tibble()
+   ,
+    align = "l",
+   digits = 0
+   )
+ #
+#
+
+renderTable(
+   
+   produtos_df %>% 
+     filter(Produtos == input$FilterProduct2) %>% 
+     select(`Valor hora (HH) R$`) %>% 
+     slice(1) %>% 
+     as_tibble()
+   ,
+    align = "l"
+   )
+
+```
+
+
+```{r}
+
+uiOutput("downloadUI")
+#
+hr(style = "border-top: 2px solid #E3EEF4FF;")
+#
+renderUI( {
+  downloadButton("downBtn", "Baixar Relatório", style = "width:100%;")
+})
+#
+output$downBtn <- downloadHandler(
+  
+   filename = function() {
+     
+    paste0(input$FilterProduct2, "_", this_year, "_", this_month ,".pdf")
+     
+  },
+  
+content = function(file) {
+  
+  
+     id <- showNotification(
+        "Criando seu relatório, aguarde...", 
+        duration = NULL, 
+        closeButton = FALSE
+      )
+     
+      on.exit(removeNotification(id), add = TRUE)
+  
+      rmarkdown::render(
+    
+          input = "www/rmarkdown/report_master.Rmd",
+      
+          output_file = file,
+      
+          params = list(produto = input$FilterProduct2,
+                        month = this_month,
+                        year = this_year)
+                        
+    )
+  }
+)
+
+```
+
+
+column {.tabset data-width="500"} 
+---------------------------------------------------------
+
+### **Horas**
+
+```{r}
+
+fig1 <- reactive({
+  
+  ggplotly(
+  
+  produtos_df %>% 
+  filter(Produtos == input$FilterProduct2) %>% 
+  mutate(
+    Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+    Data = factor(Data, levels =unique(Data))
+  ) %>% 
+  pivot_longer(
+    cols = c(Aprovado, `Em vistoria`, Reprovado, `Total horas`),
+    names_to = 'status',
+    values_to = 'values'
+  ) %>% 
+    as_tibble() %>% 
+      ggplot(aes(x = Data, y = values, group = status , color = status))+
+          geom_point()+
+          geom_line()+
+          my_theme()+
+          labs(title = glue("Histórico Horas - {input$FilterProduct2}"))+
+          ylab("Horas")+
+          scale_fill_paletteer_d("nationalparkcolors::Arches")
+          
+  )  
+  
+})
+
+#
+#
+
+A <- reactive({
+    
+    ggplotly(
+      
+    df_totais %>% 
+      filter(Produtos == input$FilterProduct2) %>% 
+      pivot_longer(
+        cols = `Total aprovado`:`Total horas`,
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x =reorder(status, values), y = values, fill = status ))+
+      geom_bar(position = "dodge", stat = "identity")+
+      my_theme()+
+      xlab("")+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")+
+      coord_flip()+
+      theme(axis.text.y = element_text(angle = 50, vjust = 1, hjust=1))
+      #geom_text(aes(label=values), vjust=1.6, color="black", size=3.5)
+      ) %>% 
+      add_annotations(
+      text = glue("Total de Horas - {input$FilterProduct2}"),
+      x = 0,
+      y = 1,
+      yref = "paper",
+      xref = "paper",
+      xanchor = "left",
+      yanchor = "top",
+      yshift = 20,
+      showarrow = FALSE,
+      font = list(size = 15)
+    ) 
+
+    
+})
+
+renderPlotly({
+  
+  
+subplot(fig1(),A(), margin = 0.08, nrows = 2, titleY = T) %>% 
+   layout(showlegend = TRUE,
+          legend = list(
+            y = 0.5,
+            title=""
+        )
+      )
+    
+
+})
+
+
+```
+
+### **%**
+
+```{r}
+
+fig2 <- reactive({ 
+  
+ produtos_df %>% 
+  filter(Produtos == input$FilterProduct2) %>% 
+  mutate(
+    Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+    Data = factor(Data, levels =unique(Data))
+  ) %>% 
+  pivot_longer(
+    cols = starts_with("%"),
+    names_to = 'status',
+    values_to = 'values'
+  ) %>% 
+  ggplot(aes(x = Data, y = values, group = status , color = status ))+
+      geom_point()+
+      geom_line()+
+      my_theme()+
+      labs(title = glue("Histórico Andamento (%)-{input$FilterProduct2}"))+
+      ylab("%")+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+})
+#
+#
+B <- reactive({
+  
+  ggplotly(
+  
+  df_totais %>% 
+      filter(Produtos == input$FilterProduct2) %>% 
+      pivot_longer(
+        cols =starts_with("%"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x =reorder(status, values), y = values, fill = status ))+
+      geom_bar(position = "dodge", stat = "identity")+
+      my_theme() +
+      xlab("")+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")+
+      coord_flip()+
+      theme(axis.text.y = element_text(angle = 50, vjust = 1, hjust=1))
+      ) %>% 
+      add_annotations(
+      text = glue("Total Executado (%)-{input$FilterProduct2} "),
+      x = 0,
+      y = 1,
+      yref = "paper",
+      xref = "paper",
+      xanchor = "left",
+      yanchor = "top",
+      yshift = 20,
+      showarrow = FALSE,
+      font = list(size = 15)
+    )
+})
+
+
+renderPlotly({
+  
+  
+subplot(fig2(),B(), margin = 0.08, nrows = 2,titleY = T) %>% 
+   layout(showlegend = TRUE,
+          legend = list(
+            y = 0.5,
+            title=""
+          ))
+    
+
+})
+
+```
+
+### **Valores**
+
+```{r}
+
+fig3<-  reactive({
+  
+ produtos_df %>% 
+  filter(Produtos == input$FilterProduct2) %>% 
+  mutate(
+    Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+    Data = factor(Data, levels =unique(Data))
+  ) %>% 
+  pivot_longer(
+    cols = `Valores aprovados R$`:`Valor total R$`,
+    names_to = 'status',
+    values_to = 'values'
+  ) %>% 
+  ggplot(aes(x = Data, y = values, group = status , color = status))+
+  geom_point()+
+  geom_line()+
+  my_theme()+
+    labs(title = glue("Histórico Valores-R$ - {input$FilterProduct2}"))+
+        ylab("R$")+
+        scale_fill_paletteer_d("nationalparkcolors::Arches") 
+
+  
+})
+#
+#
+C <- reactive({ 
+  
+  ggplotly(
+  
+  df_totais %>% 
+      filter(Produtos == input$FilterProduct2) %>% 
+      pivot_longer(
+        cols = contains("R$"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x =reorder(status, values), y = values, fill = status ))+
+      geom_bar(position = "dodge", stat = "identity")+
+      my_theme() +
+      xlab("")+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")+
+      coord_flip()+
+      theme(axis.text.y = element_text(angle = 50, vjust = 1, hjust=1))
+      ) %>% 
+    add_annotations(
+      text = glue("Total Valores R$ - {input$FilterProduct2} "),
+      x = 0,
+      y = 1,
+      yref = "paper",
+      xref = "paper",
+      xanchor = "left",
+      yanchor = "top",
+      yshift = 20,
+      showarrow = FALSE,
+      font = list(size = 15)
+    )
+})
+renderPlotly({
+  
+leg.txt <- c("Aprovado", "Em vistoria", "Reprovado", "Total horas")
+    
+subplot(fig3(),C(), margin = 0.08, nrows = 2, titleY = T) %>% 
+   layout(showlegend = TRUE,
+          legend = list(
+            y = 0.5,
+            title="",
+            leg.txt
+          ))
+    
+
+})
+```
+
+column {data-width="300"}
+-----------------------------------------
+
+### **Tabela Mensal**
+
+```{r}
+
+renderReactable({
+  
+    reactable(
+      produtos_df %>% 
+        filter(Produtos == input$FilterProduct2) %>% 
+        select(-c(Produtos,`Horas previstas`, `Valor hora (HH) R$`)) %>% 
+         mutate(
+            Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+            Data = factor(Data, levels =unique(Data))
+          ) %>% 
+        as_tibble(),
+      columns = list(
+      `% Aprovada` = colDef(format = colFormat(suffix="%",separators=TRUE,digits=2)),
+      `% Executada` = colDef(format = colFormat(suffix="%",separators=TRUE,digits=2)),
+`Valores aprovados R$` = colDef(format = colFormat(prefix = "R$", separators = TRUE,digits=2)),
+      `Valor total R$` = colDef(format = colFormat(prefix = "R$", separators = TRUE,digits=2))
+      ),
+    defaultColDef =
+      colDef(align = "center")
+    )
+  
+        
+})
+
+```
+
+### **Tabela Total**
+
+```{r}
+
+renderReactable({
+  
+    reactable(
+      df_totais %>% 
+        filter(Produtos == input$FilterProduct2) %>%
+        select(-Produtos) %>% 
+        as_tibble(),
+      columns = list(
+      `% Total aprovada` = colDef(format = colFormat(suffix="%",separators=TRUE,digits=2)),
+      `% Total executada` = colDef(format = colFormat(suffix="%",separators=TRUE,digits=2)),
+`Valor aprovado R$` = colDef(format = colFormat(prefix = "R$", separators = TRUE,digits=2)),
+      `Total projetos R$` = colDef(format = colFormat(prefix = "R$", separators = TRUE,digits=2))
+    ),
+    defaultColDef =
+      colDef(align = "center")
+    )
+ 
+})
+
+```
+
+**COMPARATIVO PRODUTOS**
+================================
+
+Inputs {.sidebar data-width="200"}
+-------------------------------------------------------------
+
+```{r sidebar2}
+
+selectInput("FilterVariable",
+            "",
+            choices = c("Horas", "%", "Valores"),
+            selected = NULL)
+
+
+```
+

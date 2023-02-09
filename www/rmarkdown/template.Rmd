@@ -1,0 +1,180 @@
+---
+date: "`r Sys.Date()`"
+output: pdf_document
+params:
+  produto: ""
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(flextable)
+library(gridExtra)
+library(glue)
+library(paletteer)
+library(nationalparkcolors)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+
+---
+title: `r params$produto`
+---
+
+
+## Tabela Resumo
+
+```{r tabela_01, warning=FALSE, ft.split=TRUE} 
+
+df_mes <- produtos_df %>% 
+  filter(Produtos == params$produto) %>% 
+  select(-c(Produtos, `Horas previstas`, `Valor hora (HH) R$`)) %>% 
+    flextable() %>%
+    theme_vanilla() %>% 
+    fit_to_width(6.5) %>% 
+    fontsize(size = 7, part = "all") %>% 
+    align(align = "center", part = "all")
+
+df_mes
+```
+
+## Gráfico de Horas
+
+```{r grafico_01}
+
+ produtos_df %>% 
+  filter(Produtos == params$produto) %>% 
+  mutate(
+    Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+    Data = factor(Data, levels =unique(Data))
+  ) %>% 
+  pivot_longer(
+    cols = c(Aprovado,`Em vistoria`, Reprovado, `Total horas`),
+    names_to = 'status',
+    values_to = 'values'
+  ) %>% 
+  ggplot(aes(x = Data, y = values, group = status , color = status))+
+      geom_point()+
+      geom_line()+
+      my_theme()+
+      labs(title = glue("HISTÓRICO MENSAL DE HORAS - {input$FilterProduct2}"),
+           colour = "")+
+        ylab("HORAS")+
+        scale_fill_paletteer_d("nationalparkcolors::Arches") 
+```
+
+
+## Gráfico %
+
+```{r grafico_02}
+
+produtos_df %>% 
+  filter(Produtos == params$produto) %>% 
+  mutate(
+    Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+    Data = factor(Data, levels =unique(Data))
+  ) %>% 
+  pivot_longer(
+    cols = starts_with("%"),
+    names_to = 'status',
+    values_to = 'values'
+  ) %>% 
+  ggplot(aes(x = Data, y = values, group = status , color = status ))+
+  geom_point()+
+    geom_line()+
+      my_theme()+
+        labs(title =glue::glue("HISTÓRICO MENSAL - ANDAMENTO PROJETO (%) - {input$FilterProduct2}"),
+              colour = "")+
+         ylab("%")+
+          scale_fill_paletteer_d("nationalparkcolors::Arches") 
+
+```
+
+
+## Gráfico Valores R$
+
+```{r grafico_03}
+
+produtos_df %>% 
+  filter(Produtos == params$produto) %>% 
+  mutate(
+      Data =  format(as.Date(paste0('01-',Data), format = "%d-%B-%Y"), format = "%B-%Y"),
+      Data = factor(Data, levels =unique(Data))
+    ) %>% 
+  pivot_longer(
+      cols = `Valores aprovados R$`:`Valor total R$`,
+      names_to = 'status',
+      values_to = 'values'
+  ) %>% 
+  ggplot(aes(x = Data, y = values, group = status , color = status))+
+      geom_point()+
+      geom_line()+
+      my_theme()+
+        labs(title = glue("HISTÓRICO MENSAL - VALORES - R$ - {input$FilterProduct2}"),
+              colour = "")+
+            ylab("R$")+
+            scale_fill_paletteer_d("nationalparkcolors::Arches") 
+```
+
+## Tabela Somatório
+
+```{r tabela_02, ft.split=TRUE}
+df_totais %>% 
+   filter(Produtos == params$produto) %>%
+   select(-Produtos) %>% 
+   as_tibble() %>% 
+   flextable() %>%
+   theme_vanilla() %>% 
+   fit_to_width(6.5) %>% 
+   fontsize(size = 7, part = "all") %>% 
+   align(align = "center", part = "all")
+```
+
+## Grafíco dos Totais
+
+```{r grafico_04}
+
+graf_01 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols = starts_with("Total"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme()+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_02 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols =starts_with("%"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme() +
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_03 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols = `Valor aprovado R$`:`Valor total R$`,
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme() +
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_comp <- gridExtra::grid.arrange(graf_01,
+             arrangeGrob(graf_02, graf_03, ncol = 2),
+             nrow = 2)  
+```
+

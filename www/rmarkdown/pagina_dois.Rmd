@@ -1,0 +1,57 @@
+---
+params:
+  produto: "default"
+---
+  
+
+\blandscape
+## Resumo Total até o momento `r format(as.Date(Sys.Date()), "%d/%B/%Y")`
+
+```{r graficos}
+
+graf_01 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols = starts_with("Total"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme()+
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_02 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols =starts_with("%"),
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme() +
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_03 <- df_totais %>% 
+      filter(Produtos == params$produto) %>% 
+      pivot_longer(
+        cols = `Valor aprovado R$`:`Valor total R$`,
+        names_to = 'status',
+        values_to = 'values'
+      ) %>% 
+      ggplot(aes(x = Produtos, y = values, fill = status ))+
+      geom_histogram(position = "dodge", stat = "identity")+
+      my_theme() +
+      scale_fill_paletteer_d("nationalparkcolors::Arches")
+
+
+graf_comp <- gridExtra::grid.arrange(graf_01,
+             arrangeGrob(graf_02, graf_03, ncol = 2),
+             nrow = 2)  
+```
+
+
+\elandscape

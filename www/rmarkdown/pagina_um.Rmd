@@ -1,0 +1,37 @@
+---
+params:
+  produto: "default"
+---
+  
+
+
+## Tabela Resumo `r produto`
+
+```{r tabela_01, warning=FALSE, ft.split=TRUE} 
+
+df_mes <- produtos_df %>% 
+  filter(Produtos == params$produto) %>% 
+  select(-c(Produtos, `Horas previstas`, `Valor hora (HH) R$`)) %>% 
+    flextable() %>%
+    theme_vanilla() %>% 
+    fit_to_width(6.5) %>% 
+    fontsize(size = 7, part = "all") %>% 
+    align(align = "center", part = "all")
+
+df_mes
+```
+
+## Tabela Somatório
+
+```{r tabela_02, ft.split=TRUE}
+df_totais %>% 
+   filter(Produtos == params$produto) %>%
+   select(-Produtos) %>% 
+   as_tibble() %>% 
+   flextable() %>%
+   theme_vanilla() %>% 
+   fit_to_width(6.5) %>% 
+   fontsize(size = 7, part = "all") %>% 
+   align(align = "center", part = "all")
+```
+
