@@ -1,5 +1,3 @@
-README
-================
 
 <h1>
 Exemplo flex dashboard (.Rmd)
